@@ -1,36 +1,123 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# RecoverAI — AI-Powered Payment Recovery
 
-## Getting Started
+RecoverAI is an AI-powered payment recovery system designed to identify and recover **failed and overdue payments** through intelligent, automated recovery workflows.
 
-First, run the development server:
+It combines a local Large Language Model (LLM), deterministic financial guardrails, Supabase persistence, and Razorpay Payment Links to create a controlled recovery system that can operate autonomously within predefined limits.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+---
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Overview
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Failed and overdue payments can lead to significant revenue loss when businesses rely entirely on manual follow-ups.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+RecoverAI addresses this by:
 
-## Learn More
+- Analyzing payment recovery cases using a local LLM
+- Assessing recovery risk
+- Recommending an appropriate recovery action
+- Automatically creating Razorpay Payment Links when permitted
+- Tracking payment attempts
+- Reacting to successful and failed payments through webhooks
+- Blocking cases after repeated failures
+- Requiring human approval for high-value recoveries
+- Respecting customer opt-out preferences
 
-To learn more about Next.js, take a look at the following resources:
+The system is designed around a simple principle:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+> **Automate recovery where it is safe, and keep humans in control where financial risk is higher.**
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+---
 
-## Deploy on Vercel
+## Key Features
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### AI-Assisted Recovery Decisions
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+RecoverAI uses a locally hosted Qwen3 model through Ollama to analyze payment cases and provide:
+
+- Risk assessment
+- Confidence score
+- Recommended recovery action
+- Reasoning for the recommendation
+
+The AI acts as a decision-support layer, while critical financial rules are enforced deterministically by the backend.
+
+---
+
+### Failed Payment Recovery
+
+RecoverAI tracks failed payment attempts and changes the recovery state accordingly.
+
+```text
+READY
+  │
+  ▼
+Create Payment Link
+  │
+  ▼
+EXECUTING
+  │
+  ├── Payment succeeds ──► RECOVERED
+  │
+  └── Payment fails ─────► READY
+                              │
+                              ▼
+                         Second failure
+
+
+AI Architecture
+
+Payment / Recovery Case
+          │
+          ▼
+     Recovery API
+          │
+          ▼
+       Qwen3 LLM
+          │
+          ▼
+ Risk + Recommendation
+          │
+          ▼
+Deterministic Guardrails
+          │
+          ▼
+ Recovery Action
+
+
+
+Architecture
+
+                    ┌─────────────────────┐
+                    │     RecoverAI UI    │
+                    │      Next.js        │
+                    └──────────┬──────────┘
+                               │
+                               ▼
+                    ┌─────────────────────┐
+                    │   Recovery APIs     │
+                    │     Next.js         │
+                    └───────┬─────┬───────┘
+                            │     │
+              ┌─────────────┘     └─────────────┐
+              ▼                                 ▼
+      ┌──────────────┐                  ┌──────────────┐
+      │   Ollama     │                  │   Supabase   │
+      │    Qwen3     │                  │   Database   │
+      └──────────────┘                  └──────────────┘
+                                              
+                            │
+                            ▼
+                    ┌─────────────────────┐
+                    │      Razorpay       │
+                    │   Payment Links     │
+                    └──────────┬──────────┘
+                               │
+                               ▼
+                    ┌─────────────────────┐
+                    │ Razorpay Webhooks   │
+                    │ payment.failed     │
+                    │ payment_link.paid  │
+                    └─────────────────────┘
+
+                              ▼
+                           BL
