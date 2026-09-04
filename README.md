@@ -24,7 +24,7 @@ RecoverAI addresses this by:
 
 The system is designed around a simple principle:
 
-> **Automate recovery where it is safe, and keep humans in control where financial risk is higher.**
+**Automate recovery where it is safe, and keep humans in control where financial risk is higher.**
 
 ---
 
@@ -62,10 +62,84 @@ EXECUTING
                               │
                               ▼
                          Second failure
+                              │
+                              ▼
+                           BLOCKED
+```
+Payment Link creation itself does not increase the failed-attempt counter.
+Only an actual failed payment increments the counter.
 
+## Payment State Management
 
-AI Architecture
+RecoverAI maintains a clear state for each recovery case.
+```text
+PENDING
+   ↓
+READY
+   ↓
+EXECUTING
+   ↓
+┌───────────────┐
+│               │
+▼               ▼
+RECOVERED      READY
+               │
+               ▼
+            BLOCKED
+```
+## Attempt Semantics
 
+Initial case
+Attempts = 0
+
+Payment Link created
+Attempts = 0
+
+Payment fails
+Attempts = 1
+
+Payment fails again
+Attempts = 2
+Status = BLOCKED
+
+Payment succeeds
+Status = RECOVERED
+Attempts unchanged
+
+This ensures that creating a recovery action is not incorrectly treated as a failed payment attempt.
+
+## Razorpay Integration
+
+RecoverAI integrates with Razorpay Test Mode for payment recovery.
+
+The system uses Razorpay Payment Links and webhooks to track payment outcomes.
+
+Supported Webhook Events
+payment.failed
+payment_link.paid
+Successful Payment
+
+When a Payment Link is successfully paid:
+
+Payment → SUCCESS
+Recovery Case → RECOVERED
+Failed Payment
+
+When a payment fails:
+
+Failed Payment
+      ↓
+Attempt Count + 1
+      ↓
+Attempts < 2 → READY
+Attempts = 2 → BLOCKED
+
+Webhook requests are verified using the configured Razorpay webhook secret.
+
+## AI Architecture
+
+RecoverAI uses a local LLM through Ollama.
+```text
 Payment / Recovery Case
           │
           ▼
@@ -82,10 +156,12 @@ Deterministic Guardrails
           │
           ▼
  Recovery Action
+```
+The LLM is therefore not the final authority for financial safety.
 
+The backend validates the AI recommendation against application-level rules before executing an action.
 
-
-Architecture
+## Architecture
 
                     ┌─────────────────────┐
                     │     RecoverAI UI    │
@@ -119,5 +195,62 @@ Architecture
                     │ payment_link.paid  │
                     └─────────────────────┘
 
-                              ▼
-                           BL
+## Security & Safety
+
+Important protections include:
+
+* Server-side financial limits
+* Customer opt-out enforcement
+* Successful-payment checks
+* Maximum failed-attempt protection
+* Duplicate execution prevention
+* Razorpay webhook signature verification
+* Human approval for high-value recoveries
+* Local AI inference instead of sending payment data to an external LLM API
+
+AI recommendations are treated as inputs to the recovery system rather than unrestricted commands.
+
+## Current Status
+
+RecoverAI currently demonstrates:
+
+* AI-assisted recovery analysis
+* Failed payment recovery
+* Overdue payment recovery
+* Risk classification
+* Autonomous recovery limits
+* Razorpay Payment Link creation
+* Razorpay payment success tracking
+* Razorpay payment failure tracking
+* Recovery attempt tracking
+* Automatic blocking after repeated failures
+* Customer opt-out protection
+* Supabase persistence
+* Local LLM inference through Ollama
+* Future Improvements
+
+## Potential future improvements include:
+
+* More sophisticated overdue-payment strategies
+* Automated reminder workflows
+* Improved customer history analytics
+* Recovery success-rate analytics
+* Adaptive recovery strategies
+* More advanced risk calibration
+* Production Razorpay integration
+* Authentication and role-based access
+* Audit logs for financial decisions
+* Evaluation of AI recommendations against historical recovery outcomes
+## Disclaimer
+
+RecoverAI is an academic/software prototype designed for demonstration and experimentation.
+
+It currently uses Razorpay Test Mode and should not be considered a production financial recovery system without additional security, compliance, monitoring, testing, and operational controls.
+
+## Author
+
+Arsalna Yasir Elahi
+
+B.Tech Computer Science & Engineering
+
+GitHub: https://github.com/arsalnaye                    
